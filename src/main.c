@@ -254,7 +254,7 @@ static void format_scaled(u32 abs_value, u8 neg, u8 edit_mode, char *out)
     u8 len;
 
     out[0] = '\0';
-    if (neg != 0) {
+    if ((neg != 0) && (abs_value != 0UL)) {
         append_char(out, '-', NUM_BUF_SIZE);
     }
 
