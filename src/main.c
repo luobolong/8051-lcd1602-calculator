@@ -6,10 +6,10 @@
  *   RS/RW/E -> P2.6/P2.5/P2.7
  *
  * Matrix keyboard S1-S16 -> P1:
- *   S1  S2  S3  S4     7 8 9 +
- *   S5  S6  S7  S8     4 5 6 -
- *   S9  S10 S11 S12    1 2 3 *
- *   S13 S14 S15 S16    +/- 0 . /
+ *   S1  S2  S3  S4     7 8 9 /
+ *   S5  S6  S7  S8     4 5 6 *
+ *   S9  S10 S11 S12    1 2 3 -
+ *   S13 S14 S15 S16    +/- 0 . +
  *
  * Independent keys R1-R4:
  *   R1 backspace, R2 AC, R3 percent, R4 equals.
@@ -52,10 +52,10 @@ __sbit __at (0xB3) KEY_R4;
 #define CALC_MIN        (-20000000L)
 
 static __code const u8 g_key_map[16] = {
-    '7', '8', '9', '+',
-    '4', '5', '6', '-',
-    '1', '2', '3', '*',
-    ACT_SIGN, '0', '.', '/'
+    '7', '8', '9', '/',
+    '4', '5', '6', '*',
+    '1', '2', '3', '-',
+    ACT_SIGN, '0', '.', '+'
 };
 
 static __code const u16 g_frac_place[2] = { 10, 1 };

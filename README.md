@@ -18,10 +18,10 @@ dependencies, ~6 KB Flash.
 ### Matrix Keyboard (P1)
 
 ```text
-S1  S2  S3  S4      7  8  9  +
-S5  S6  S7  S8      4  5  6  -
-S9  S10 S11 S12     1  2  3  *
-S13 S14 S15 S16    +/- 0  .  /
+S1  S2  S3  S4      7  8  9  /
+S5  S6  S7  S8      4  5  6  *
+S9  S10 S11 S12     1  2  3  -
+S13 S14 S15 S16    +/- 0  .  +
 ```
 
 ### Independent Keys
