@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "*.c": "c",
+        "*.h": "c"
+    },
+    "files.exclude": {
+        "build/*.asm": true,
+        "build/*.lk": true,
+        "build/*.lst": true,
+        "build/*.map": true,
+        "build/*.mem": true,
+        "build/*.rel": true,
+        "build/*.rst": true,
+        "build/*.sym": true
+    },
+    "C_Cpp.errorSquiggles": "enabled"
+}

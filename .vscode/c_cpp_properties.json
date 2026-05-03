@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "name": "SDCC MCS-51",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "/usr/share/sdcc/include",
+                "/usr/share/sdcc/include/mcs51"
+            ],
+            "defines": [
+                "__SDCC",
+                "__SDCC_mcs51",
+                "__sfr=volatile unsigned char",
+                "__sbit=volatile unsigned char",
+                "__at(x)=",
+                "__code=",
+                "__idata=",
+                "__bit=unsigned char"
+            ],
+            "compilerPath": "/usr/bin/sdcc",
+            "cStandard": "c99",
+            "intelliSenseMode": "gcc-x86"
+        }
+    ],
+    "version": 4
+}
