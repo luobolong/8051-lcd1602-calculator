@@ -2,8 +2,8 @@
 
 [English README](README.md)
 
-STC89C52RC（普中 51 A2 开发板）定点计算器。LCD1602 显示，4x4 矩阵键盘 +
-4 个独立按键。单文件 C 实现，零标准库依赖，Flash 占用约 6 KB。
+STC89C52RC 定点计算器。LCD1602 显示，5x4 矩阵键盘。
+单文件 C 实现，零标准库依赖，Flash 占用约 6 KB。
 
 ## 硬件
 
@@ -14,23 +14,18 @@ STC89C52RC（普中 51 A2 开发板）定点计算器。LCD1602 显示，4x4 矩
 | DB0-DB7 | P0 |
 | RS / RW / EN | P2.6 / P2.5 / P2.7 |
 
-### 矩阵键盘 (P1)
+### 矩阵键盘
 
 ```text
-S1  S2  S3  S4      7  8  9  /
-S5  S6  S7  S8      4  5  6  *
-S9  S10 S11 S12     1  2  3  -
-S13 S14 S15 S16    +/- 0  .  +
+从左到右 4 列：P1.0 P1.1 P1.2 P1.3
+从下到上 5 行：P1.4 P1.5 P1.6 P1.7 P3.2
+
+退格  AC  百分号  /
+1     2   3       *
+4     5   6       -
+7     8   9       +
++/-   0   .       =
 ```
-
-### 独立按键
-
-| 按键 | 功能 | 引脚 |
-| --- | --- | --- |
-| R1 | 退格 | P3.1 |
-| R2 | AC | P3.0 |
-| R3 | 百分号 | P3.2 |
-| R4 | 等于 | P3.3 |
 
 ## 编译
 
@@ -70,8 +65,7 @@ sdcc -mmcs51 --model-small --iram-size 256 --idata-loc 0x80
 ```text
 主循环
   ├─ scan_key_action              硬件输入
-  │    ├─ scan_independent_action   R1-R4 消抖
-  │    └─ scan_matrix_raw           4x4 列/行扫描
+  │    └─ scan_matrix_raw           5x4 列/行扫描
   ├─ handle_action                计算器状态机
   │    ├─ input_digit / input_dot / input_sign
   │    ├─ input_operator / input_equal
@@ -212,10 +206,10 @@ SDCC `main.mem` 输出（标注）：
 | 寄存器组 0 | 0x00-0x07 | 8 | R0-R7 |
 | 覆盖区 (Q) | 0x08-0x0E | 7 | 不重叠调用路径的共享局部变量 |
 | 位寻址区 (B) | 0x20 | 1 | 4 个 `__bit` 标志 |
-| 直接寻址数据 (a) | 0x21-0x7E | 85 | `g_left`、`g_edit_abs`、`g_op`、`g_rev[8]` 等 |
+| 直接寻址数据 (a) | 0x21-0x7E | 94 | `g_left`、`g_edit_abs`、`g_op`、`g_rev[8]` 等 |
 | IDATA (I) | 0x80-0xD5 | 86 | `g_expr[24]`、`g_num[14]`、`fixed_mul` 局部变量 |
 | 栈 (S) | 0xD6-0xFF | 42 | 调用栈（返回地址 + 临时变量） |
-| Flash | 0x0000-0x1770 | 6001 | 代码 + `__code` 常量 |
+| Flash | 0x0000-0x1773 | 6004 | 代码 + `__code` 常量 |
 
 ### 栈深度
 
@@ -233,7 +227,7 @@ main -> handle_action -> input_operator -> compute -> fixed_mul
 
 | 手段 | 机制 | 效果 |
 | --- | --- | --- |
-| `__code` 常量 | `g_key_map`、`g_frac_place` 放入 Flash | -20 B RAM |
+| `__code` 常量 | `g_key_map`、`g_frac_place` 放入 Flash | -24 B RAM |
 | `__bit` 标志 | 4 个布尔值放入位寻址区 | -3 B RAM，单周期 `SETB`/`CLR`/`JB` |
 | `__idata` 缓冲区 | `g_expr[24]`、`g_num[14]` 放入上半区 | -38 B 直接寻址 RAM |
 | `__idata` 局部变量 | `fixed_mul` 临时变量放入上半区 | -40 B 栈 |
@@ -249,8 +243,7 @@ main -> handle_action -> input_operator -> compute -> fixed_mul
 | 完整 LCD 刷新 | ~64 ms | 32 字符 * 2 ms |
 | 矩阵键消抖 | 12 ms | 初次检测后二次读取 |
 | 矩阵键释放等待 | 10 ms/次 | 最多 200 次轮询（2 秒超时） |
-| 独立键消抖 | 12 ms | 与矩阵键相同 |
-| 空闲扫描周期 | ~2 ms | 矩阵探测 + 独立键检查 |
+| 空闲扫描周期 | ~1 ms | 5x4 矩阵探测 |
 
 活跃输入时主循环约 15 Hz（受 LCD 刷新限制），空闲轮询约 500 Hz。
 
@@ -270,7 +263,7 @@ main -> handle_action -> input_operator -> compute -> fixed_mul
 | 修改内容 | 位置 |
 | --- | --- |
 | LCD 引脚 | `LCD_RS`、`LCD_RW`、`LCD_EN` 的 `__sbit` 定义 |
-| R1-R4 引脚 | `KEY_R1`-`KEY_R4` 的 `__sbit` 定义 |
-| 按键布局 | `g_key_map[16]` 数组 |
+| 键盘最上面行线引脚 | `KEY_ROW_TOP` 的 `__sbit` 定义和 `P3` 初始化掩码 |
+| 按键布局 | `g_key_map[20]` 数组 |
 | 小数精度 | `SCALE`、`SCALE_DIGITS`、`g_frac_place[]` — 改后需验证 RAM/Flash |
 | 串口参数 | Makefile 中的 `PORT`、`BAUD`、`PROTOCOL` |

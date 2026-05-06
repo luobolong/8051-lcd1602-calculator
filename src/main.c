@@ -5,15 +5,15 @@
  *   DB0-DB7 -> P0
  *   RS/RW/E -> P2.6/P2.5/P2.7
  *
- * Matrix keyboard S1-S16 -> P1:
- *   S1  S2  S3  S4     7 8 9 /
- *   S5  S6  S7  S8     4 5 6 *
- *   S9  S10 S11 S12    1 2 3 -
- *   S13 S14 S15 S16    +/- 0 . +
+ * 5x4 matrix keyboard:
+ *   Columns left to right -> P1.0/P1.1/P1.2/P1.3
+ *   Rows bottom to top   -> P1.4/P1.5/P1.6/P1.7/P3.2
  *
- * Independent keys R1-R4:
- *   R1 backspace, R2 AC, R3 percent, R4 equals.
- *   Common Puzhong wiring: R1/R2/R3/R4 -> P3.1/P3.0/P3.2/P3.3
+ *   Backspace AC Percent /
+ *   1         2  3       *
+ *   4         5  6       -
+ *   7         8  9       +
+ *   +/-       0  .       =
  */
 
 typedef unsigned char u8;
@@ -30,10 +30,7 @@ __sbit __at (0xA6) LCD_RS;
 __sbit __at (0xA5) LCD_RW;
 __sbit __at (0xA7) LCD_EN;
 
-__sbit __at (0xB1) KEY_R1;
-__sbit __at (0xB0) KEY_R2;
-__sbit __at (0xB2) KEY_R3;
-__sbit __at (0xB3) KEY_R4;
+__sbit __at (0xB2) KEY_ROW_TOP;
 
 #define LCD_COLS        16
 #define DISP_BUF_SIZE   24
@@ -51,11 +48,12 @@ __sbit __at (0xB3) KEY_R4;
 #define CALC_MAX        20000000L
 #define CALC_MIN        (-20000000L)
 
-static __code const u8 g_key_map[16] = {
-    '7', '8', '9', '/',
-    '4', '5', '6', '*',
-    '1', '2', '3', '-',
-    ACT_SIGN, '0', '.', '+'
+static __code const u8 g_key_map[20] = {
+    ACT_BACK, ACT_CLEAR, ACT_PERCENT, '/',
+    '1', '2', '3', '*',
+    '4', '5', '6', '-',
+    '7', '8', '9', '+',
+    ACT_SIGN, '0', '.', ACT_EQUAL
 };
 
 static __code const u16 g_frac_place[2] = { 10, 1 };
@@ -140,6 +138,9 @@ static void lcd_cmd(u8 cmd)
     LCD_RW = 0;
     P0 = cmd;
     lcd_pulse();
+    if ((cmd == 0x01) || (cmd == 0x02)) {
+        delay_ms(3);
+    }
 }
 
 static void lcd_data(u8 dat)
@@ -161,12 +162,21 @@ static void lcd_set_cursor(u8 row, u8 col)
 
 static void lcd_init(void)
 {
-    delay_ms(20);
+    LCD_RS = 0;
+    LCD_RW = 0;
+    LCD_EN = 0;
+    P0 = 0xFF;
+    delay_ms(50);
+
     lcd_cmd(0x38);
+    delay_ms(5);
+    lcd_cmd(0x38);
+    delay_ms(1);
+    lcd_cmd(0x38);
+    delay_ms(1);
     lcd_cmd(0x0C);
     lcd_cmd(0x06);
     lcd_cmd(0x01);
-    delay_ms(3);
 }
 
 static void lcd_line_tail(u8 row, const char *s)
@@ -734,48 +744,61 @@ static u8 scan_matrix_raw(void)
 {
     u8 col;
     u8 row;
-    u8 p;
+    u8 row_bits;
+    u8 pattern;
 
-    col = KEY_NONE;
-    row = KEY_NONE;
-
-    P1 = 0x0F;
+    P1 = 0xF0;
+    KEY_ROW_TOP = 1;
     delay_ms(1);
-    p = (u8)(P1 & 0x0F);
-    if (p == 0x0F) {
+    row_bits = (u8)(P1 & 0xF0);
+    if ((row_bits == 0xF0) && (KEY_ROW_TOP != 0)) {
+        P1 = 0xFF;
         return KEY_NONE;
     }
 
     delay_ms(12);
-    p = (u8)(P1 & 0x0F);
-    if (p == 0x0F) {
+    row_bits = (u8)(P1 & 0xF0);
+    if ((row_bits == 0xF0) && (KEY_ROW_TOP != 0)) {
+        P1 = 0xFF;
         return KEY_NONE;
     }
 
-    if (p == 0x07) {
-        col = 0;
-    } else if (p == 0x0B) {
-        col = 1;
-    } else if (p == 0x0D) {
-        col = 2;
-    } else if (p == 0x0E) {
-        col = 3;
-    } else {
-        return KEY_NONE;
+    col = KEY_NONE;
+    row = KEY_NONE;
+    for (pattern = 0xFE; pattern != 0xEF; pattern = (u8)((pattern << 1) | 0x01)) {
+        P1 = pattern;
+        KEY_ROW_TOP = 1;
+        delay_ms(1);
+
+        row_bits = (u8)(P1 & 0xF0);
+        if ((row_bits != 0xF0) || (KEY_ROW_TOP == 0)) {
+            if (pattern == 0xFE) {
+                col = 0;
+            } else if (pattern == 0xFD) {
+                col = 1;
+            } else if (pattern == 0xFB) {
+                col = 2;
+            } else {
+                col = 3;
+            }
+
+            if (KEY_ROW_TOP == 0) {
+                row = 0;
+            } else if (row_bits == 0x70) {
+                row = 1;
+            } else if (row_bits == 0xB0) {
+                row = 2;
+            } else if (row_bits == 0xD0) {
+                row = 3;
+            } else if (row_bits == 0xE0) {
+                row = 4;
+            }
+            break;
+        }
     }
 
-    P1 = 0xF0;
-    delay_ms(1);
-    p = (u8)(P1 & 0xF0);
-    if (p == 0x70) {
-        row = 0;
-    } else if (p == 0xB0) {
-        row = 1;
-    } else if (p == 0xD0) {
-        row = 2;
-    } else if (p == 0xE0) {
-        row = 3;
-    } else {
+    P1 = 0xFF;
+    if ((col == KEY_NONE) || (row == KEY_NONE)) {
         return KEY_NONE;
     }
 
@@ -788,63 +811,17 @@ static void wait_matrix_release(void)
 
     guard = 0;
     do {
-        P1 = 0x0F;
+        P1 = 0xF0;
+        KEY_ROW_TOP = 1;
         delay_ms(10);
         guard++;
-    } while (((P1 & 0x0F) != 0x0F) && (guard < 200));
+    } while ((((P1 & 0xF0) != 0xF0) || (KEY_ROW_TOP == 0)) && (guard < 200));
     P1 = 0xFF;
-}
-
-static u8 scan_independent_action(void)
-{
-    if (KEY_R1 == 0) {
-        delay_ms(12);
-        if (KEY_R1 == 0) {
-            while (KEY_R1 == 0) {
-                delay_ms(10);
-            }
-            return ACT_BACK;
-        }
-    }
-    if (KEY_R2 == 0) {
-        delay_ms(12);
-        if (KEY_R2 == 0) {
-            while (KEY_R2 == 0) {
-                delay_ms(10);
-            }
-            return ACT_CLEAR;
-        }
-    }
-    if (KEY_R3 == 0) {
-        delay_ms(12);
-        if (KEY_R3 == 0) {
-            while (KEY_R3 == 0) {
-                delay_ms(10);
-            }
-            return ACT_PERCENT;
-        }
-    }
-    if (KEY_R4 == 0) {
-        delay_ms(12);
-        if (KEY_R4 == 0) {
-            while (KEY_R4 == 0) {
-                delay_ms(10);
-            }
-            return ACT_EQUAL;
-        }
-    }
-    return KEY_NONE;
 }
 
 static u8 scan_key_action(void)
 {
-    u8 action;
     u8 matrix_key;
-
-    action = scan_independent_action();
-    if (action != KEY_NONE) {
-        return action;
-    }
 
     matrix_key = scan_matrix_raw();
     if (matrix_key != KEY_NONE) {
@@ -882,7 +859,7 @@ void main(void)
     P0 = 0x00;
     P1 = 0xFF;
     P2 = 0x00;
-    P3 = (u8)(P3 | 0x0F);
+    P3 = (u8)(P3 | 0x04);
 
     lcd_init();
     clear_all();

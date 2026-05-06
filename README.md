@@ -2,9 +2,8 @@
 
 [中文说明 / Chinese version](README.zh-CN.md)
 
-Fixed-point calculator for STC89C52RC (Puzhong 51 A2 board). LCD1602 display,
-4x4 matrix keyboard + 4 independent keys. Single-file C, zero stdlib
-dependencies, ~6 KB Flash.
+Fixed-point calculator for STC89C52RC. LCD1602 display, 5x4 matrix keyboard.
+Single-file C, zero stdlib dependencies, ~6 KB Flash.
 
 ## Hardware
 
@@ -15,23 +14,18 @@ dependencies, ~6 KB Flash.
 | DB0-DB7 | P0 |
 | RS / RW / EN | P2.6 / P2.5 / P2.7 |
 
-### Matrix Keyboard (P1)
+### Matrix Keyboard
 
 ```text
-S1  S2  S3  S4      7  8  9  /
-S5  S6  S7  S8      4  5  6  *
-S9  S10 S11 S12     1  2  3  -
-S13 S14 S15 S16    +/- 0  .  +
+Columns left to right: P1.0 P1.1 P1.2 P1.3
+Rows bottom to top:    P1.4 P1.5 P1.6 P1.7 P3.2
+
+Backspace  AC  Percent  /
+1          2   3        *
+4          5   6        -
+7          8   9        +
++/-        0   .        =
 ```
-
-### Independent Keys
-
-| Key | Function | Pin |
-| --- | --- | --- |
-| R1 | Backspace | P3.1 |
-| R2 | AC | P3.0 |
-| R3 | Percent | P3.2 |
-| R4 | Equals | P3.3 |
 
 ## Build
 
@@ -72,8 +66,7 @@ calls downward:
 ```text
 main loop
   ├─ scan_key_action              hardware input
-  │    ├─ scan_independent_action   R1-R4 debounce
-  │    └─ scan_matrix_raw           4x4 column/row detect
+  │    └─ scan_matrix_raw           5x4 column/row detect
   ├─ handle_action                calculator state machine
   │    ├─ input_digit / input_dot / input_sign
   │    ├─ input_operator / input_equal
@@ -221,10 +214,10 @@ From SDCC `main.mem` (annotated):
 | Register bank 0 | 0x00-0x07 | 8 | R0-R7 |
 | Overlay (Q) | 0x08-0x0E | 7 | Shared locals for non-overlapping call paths |
 | Bit area (B) | 0x20 | 1 | 4 `__bit` flags |
-| Direct data (a) | 0x21-0x7E | 85 | `g_left`, `g_edit_abs`, `g_op`, `g_rev[8]`, etc. |
+| Direct data (a) | 0x21-0x7E | 94 | `g_left`, `g_edit_abs`, `g_op`, `g_rev[8]`, etc. |
 | IDATA (I) | 0x80-0xD5 | 86 | `g_expr[24]`, `g_num[14]`, `fixed_mul` locals |
 | Stack (S) | 0xD6-0xFF | 42 | Call stack (return addresses + temporaries) |
-| Flash | 0x0000-0x1770 | 6001 | Code + `__code` constants |
+| Flash | 0x0000-0x1773 | 6004 | Code + `__code` constants |
 
 ### Stack Depth
 
@@ -243,7 +236,7 @@ locals and compiler temporaries.
 
 | Technique | Mechanism | Effect |
 | --- | --- | --- |
-| `__code` constants | `g_key_map`, `g_frac_place` in Flash | -20 B RAM |
+| `__code` constants | `g_key_map`, `g_frac_place` in Flash | -24 B RAM |
 | `__bit` flags | 4 booleans in bit-addressable area | -3 B RAM, single-cycle `SETB`/`CLR`/`JB` |
 | `__idata` buffers | `g_expr[24]`, `g_num[14]` in upper RAM | -38 B direct RAM |
 | `__idata` locals | `fixed_mul` temporaries in upper RAM | -40 B stack |
@@ -259,8 +252,7 @@ locals and compiler temporaries.
 | Full LCD refresh | ~64 ms | 32 characters * 2 ms |
 | Matrix debounce | 12 ms | Second read after initial detect |
 | Matrix release wait | 10 ms/poll | Up to 200 polls (2 s timeout) |
-| Independent key debounce | 12 ms | Same pattern as matrix |
-| Idle scan cycle | ~2 ms | Matrix probe + independent checks |
+| Idle scan cycle | ~1 ms | 5x4 matrix probe |
 
 Main loop runs at ~15 Hz during active input (LCD-bound). Idle polling is
 ~500 Hz.
@@ -282,7 +274,7 @@ active decimal input.
 | Change | Location |
 | --- | --- |
 | LCD pins | `LCD_RS`, `LCD_RW`, `LCD_EN` `__sbit` definitions |
-| R1-R4 pins | `KEY_R1`-`KEY_R4` `__sbit` definitions |
-| Key layout | `g_key_map[16]` array |
+| Top keyboard row pin | `KEY_ROW_TOP` `__sbit` definition and `P3` init mask |
+| Key layout | `g_key_map[20]` array |
 | Decimal precision | `SCALE`, `SCALE_DIGITS`, `g_frac_place[]` — verify RAM/Flash after |
 | Serial port | `PORT`, `BAUD`, `PROTOCOL` in Makefile |
